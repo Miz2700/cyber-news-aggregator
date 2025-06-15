@@ -190,9 +190,8 @@ class NewsCollector:
         }
 
 
-# FUNZIONI STANDALONE CON I NOMI ESATTI CHE USA main.py
 def collect_cyber_news(limit=20):
-    """Raccoglie notizie cyber - NOME CORRETTO"""
+    """Raccoglie notizie cyber"""
     import os
     api_key = os.getenv('NEWS_API_KEY')
     if not api_key:
@@ -204,7 +203,7 @@ def collect_cyber_news(limit=20):
     return articles[:limit]
 
 def collect_geo_news(limit=20):
-    """Raccoglie notizie geo - NOME CORRETTO"""
+    """Raccoglie notizie geo"""
     import os
     api_key = os.getenv('NEWS_API_KEY')
     if not api_key:
@@ -312,3 +311,7 @@ def enhanced_correlation_finder(cyber_articles, geo_articles):
     
     logger.info(f"🎯 Trovate {len(correlations)} correlazioni")
     return correlations
+
+# Alias per main.py
+collect_cybersecurity_news = collect_cyber_news
+collect_geopolitical_news = collect_geo_news
