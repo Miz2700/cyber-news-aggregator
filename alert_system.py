@@ -195,7 +195,7 @@ def run_full_analysis():
     
     # Importa i collector
     from news_collector import collect_cyber_news, collect_geopolitical_news, find_correlations
-    from rss_collector import collect_cybersecurity_rss, collect_geopolitical_rss, enhanced_correlation_finder
+    from news_collector import collect_cybersecurity_rss, collect_geopolitical_rss, enhanced_correlation_finder
     from config import NEWS_API_KEY
     
     alert_system = CyberGeoAlertSystem()
