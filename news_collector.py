@@ -312,6 +312,7 @@ def enhanced_correlation_finder(cyber_articles, geo_articles):
     logger.info(f"🎯 Trovate {len(correlations)} correlazioni")
     return correlations
 
-# Alias per main.py
+# Alias per compatibilità con main.py e alert_system.py
 collect_cybersecurity_news = collect_cyber_news
 collect_geopolitical_news = collect_geo_news
+find_correlations = enhanced_correlation_finder
