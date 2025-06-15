@@ -200,7 +200,16 @@ def collect_cyber_news(limit=20):
     
     collector = NewsCollector(api_key)
     articles = collector.collect_cybersecurity_news()
-    return articles[:limit]
+    
+    # Fix per il problema slice
+    if limit and isinstance(limit, (int, str)):
+        try:
+            limit_int = int(limit)
+            return articles[:limit_int]
+        except (ValueError, TypeError):
+            return articles
+    else:
+        return articles
 
 def collect_geo_news(limit=20):
     """Raccoglie notizie geo"""
@@ -212,7 +221,16 @@ def collect_geo_news(limit=20):
     
     collector = NewsCollector(api_key)
     articles = collector.collect_geopolitical_news()
-    return articles[:limit]
+    
+    # Fix per il problema slice
+    if limit and isinstance(limit, (int, str)):
+        try:
+            limit_int = int(limit)
+            return articles[:limit_int]
+        except (ValueError, TypeError):
+            return articles
+    else:
+        return articles
 
 def collect_cybersecurity_rss(limit=20):
     """Raccoglie notizie cybersecurity da RSS"""
@@ -224,7 +242,16 @@ def collect_cybersecurity_rss(limit=20):
     
     collector = NewsCollector(api_key)
     articles = collector.collect_cybersecurity_news()
-    return articles[:limit]
+    
+    # Fix per il problema slice
+    if limit and isinstance(limit, (int, str)):
+        try:
+            limit_int = int(limit)
+            return articles[:limit_int]
+        except (ValueError, TypeError):
+            return articles
+    else:
+        return articles
 
 def collect_geopolitical_rss(limit=20):
     """Raccoglie notizie geopolitiche da RSS"""
@@ -236,7 +263,16 @@ def collect_geopolitical_rss(limit=20):
     
     collector = NewsCollector(api_key)
     articles = collector.collect_geopolitical_news()
-    return articles[:limit]
+    
+    # Fix per il problema slice
+    if limit and isinstance(limit, (int, str)):
+        try:
+            limit_int = int(limit)
+            return articles[:limit_int]
+        except (ValueError, TypeError):
+            return articles
+    else:
+        return articles
 
 def enhanced_correlation_finder(cyber_articles, geo_articles):
     """Trova correlazioni avanzate tra articoli cyber e geopolitici"""
