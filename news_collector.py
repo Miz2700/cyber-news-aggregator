@@ -190,7 +190,31 @@ class NewsCollector:
         }
 
 
-# Funzioni standalone per compatibilità
+# FUNZIONI STANDALONE CON I NOMI ESATTI CHE USA main.py
+def collect_cyber_news(limit=20):
+    """Raccoglie notizie cyber - NOME CORRETTO"""
+    import os
+    api_key = os.getenv('NEWS_API_KEY')
+    if not api_key:
+        logger.error("❌ NEWS_API_KEY non trovata")
+        return []
+    
+    collector = NewsCollector(api_key)
+    articles = collector.collect_cybersecurity_news()
+    return articles[:limit]
+
+def collect_geo_news(limit=20):
+    """Raccoglie notizie geo - NOME CORRETTO"""
+    import os
+    api_key = os.getenv('NEWS_API_KEY')
+    if not api_key:
+        logger.error("❌ NEWS_API_KEY non trovata")
+        return []
+    
+    collector = NewsCollector(api_key)
+    articles = collector.collect_geopolitical_news()
+    return articles[:limit]
+
 def collect_cybersecurity_rss(limit=20):
     """Raccoglie notizie cybersecurity da RSS"""
     import os
