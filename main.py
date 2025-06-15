@@ -185,7 +185,7 @@ def health_check():
     try:
         # Test import moduli
         from config import NEWS_API_KEY
-        from news_collector import collect_cyber_news
+        from news_collector import collect_cybersecurity_news, collect_geopolitical_news
         
         # Test API key
         if not NEWS_API_KEY or NEWS_API_KEY == "your_newsapi_key_here":
