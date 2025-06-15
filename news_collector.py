@@ -1,230 +1,290 @@
 import requests
+import feedparser
+from datetime import datetime, timedelta
+import logging
 import time
-from datetime import datetime
-import json
+from typing import List, Dict, Any
+import re
 
-def collect_cyber_news(api_key):
-    """Raccoglie notizie di cybersecurity da NewsAPI"""
-    
-    print("🔍 Raccogliendo notizie di tecnologia...")
-    
-    url = "https://newsapi.org/v2/top-headlines"
-    params = {
-        'category': 'technology',
-        'apiKey': api_key,
-        'pageSize': 100,  # Massimo disponibile
-        'country': 'us'
-    }
-    
-    try:
-        response = requests.get(url, params=params)
+# Configurazione logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class NewsCollector:
+    def __init__(self, news_api_key):
+        self.news_api_key = news_api_key
+        self.base_url = "https://newsapi.org/v2"
         
-        if response.status_code == 200:
-            data = response.json()
-            
-            # Filtra per cybersecurity keywords
-            cyber_keywords = [
-                'cyber', 'hack', 'breach', 'malware', 'security', 'attack', 
-                'ransomware', 'phishing', 'password', 'vulnerability', 'data',
-                'privacy', 'encryption', 'threat', 'virus', 'exploit'
-            ]
-            
-            cyber_articles = []
-            
-            for article in data['articles']:
-                # Controlla titolo e descrizione
-                text_to_check = (article['title'] + ' ' + (article['description'] or '')).lower()
+        # Feed RSS cyber security
+        self.cyber_rss_feeds = [
+            "https://feeds.feedburner.com/TheHackersNews",
+            "https://krebsonsecurity.com/feed/",
+            "https://www.bleepingcomputer.com/feed/",
+            "https://feeds.feedburner.com/securityweek",
+            "https://www.darkreading.com/rss.xml",
+            "https://feeds.feedburner.com/eset/blog",
+            "https://www.schneier.com/feed/atom/",
+            "https://www.csoonline.com/index.rss",
+            "https://www.infosecurity-magazine.com/rss/news/",
+            "https://cybersecuritynews.com/feed/",
+            "https://feeds.feedburner.com/SecurityIntelligence",
+            "https://www.cyberscoop.com/feed",
+            "https://www.securitymagazine.com/rss/topic/2236-cyber-security",
+            "https://threatpost.com/feed/",
+            "https://feeds.feedburner.com/tripwire-state-of-security",
+            "https://www.recordedfuture.com/feed",
+            "https://cyware.com/allnews/feed",
+            "https://www.helpnetsecurity.com/feed/",
+            "https://www.fireeye.com/blog/feed",
+            "https://www.fortinet.com/blog/rss.xml"
+        ]
+        
+        # Feed RSS geopolitica
+        self.geopolitical_rss_feeds = [
+            "https://rss.cnn.com/rss/edition.rss",
+            "https://feeds.bbci.co.uk/news/world/rss.xml",
+            "https://www.reuters.com/rssFeed/worldNews",
+            "https://feeds.reuters.com/reuters/politicsNews",
+            "https://www.aljazeera.com/xml/rss/all.xml",
+            "https://feeds.npr.org/1004/rss.xml",
+            "https://www.dw.com/en/rss/all/rss.xml",
+            "https://feeds.feedburner.com/france24-en-international",
+            "https://www.rt.com/rss/",
+            "https://feeds.skynews.com/feeds/rss/world.xml",
+            "https://feeds.reuters.com/Reuters/worldNews",
+            "https://www.theguardian.com/world/rss",
+            "https://feeds.washingtonpost.com/rss/world",
+            "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+            "https://www.foreignaffairs.com/rss.xml",
+            "https://feeds.feedburner.com/DefenseNewsBreaking",
+            "https://www.janes.com/feeds/defence-news.xml",
+            "https://www.defensenews.com/arc/outboundfeeds/rss/category/global/?outputType=xml",
+            "https://feeds.feedburner.com/stratfor",
+            "https://www.cfr.org/feeds/net-politics"
+        ]
+
+    def collect_news_api(self, keywords: List[str], category: str = None) -> List[Dict[str, Any]]:
+        """Raccoglie notizie da NewsAPI"""
+        articles = []
+        
+        for keyword in keywords:
+            try:
+                params = {
+                    'q': keyword,
+                    'apiKey': self.news_api_key,
+                    'language': 'en',
+                    'sortBy': 'publishedAt',
+                    'pageSize': 100
+                }
                 
-                if any(keyword in text_to_check for keyword in cyber_keywords):
-                    article['cyber_score'] = sum(1 for keyword in cyber_keywords if keyword in text_to_check)
-                    cyber_articles.append(article)
-            
-            # Ordina per rilevanza cybersecurity
-            cyber_articles.sort(key=lambda x: x['cyber_score'], reverse=True)
-            
-            print(f"✅ Trovate {len(cyber_articles)} notizie cyber da {data['totalResults']} totali tech")
-            return cyber_articles
-            
-        else:
-            print(f"❌ Errore API: {response.status_code}")
-            return []
-        
-    except Exception as e:
-        print(f"❌ Errore: {e}")
-        return []
-
-def collect_geopolitical_news(api_key):
-    """Raccoglie notizie geopolitiche"""
-    
-    print("🌍 Raccogliendo notizie generali...")
-    
-    url = "https://newsapi.org/v2/top-headlines"
-    params = {
-        'category': 'general',
-        'apiKey': api_key,
-        'pageSize': 100,
-        'country': 'us'
-    }
-    
-    try:
-        response = requests.get(url, params=params)
-        
-        if response.status_code == 200:
-            data = response.json()
-            
-            # Filtra per geopolitical keywords
-            geo_keywords = [
-                'war', 'conflict', 'military', 'diplomatic', 'sanctions', 
-                'international', 'government', 'political', 'intelligence',
-                'nation', 'treaty', 'embassy', 'foreign', 'minister',
-                'president', 'prime', 'defense', 'security council'
-            ]
-            
-            geo_articles = []
-            
-            for article in data['articles']:
-                text_to_check = (article['title'] + ' ' + (article['description'] or '')).lower()
+                if category:
+                    params['category'] = category
                 
-                if any(keyword in text_to_check for keyword in geo_keywords):
-                    article['geo_score'] = sum(1 for keyword in geo_keywords if keyword in text_to_check)
-                    geo_articles.append(article)
-            
-            # Ordina per rilevanza geopolitica
-            geo_articles.sort(key=lambda x: x['geo_score'], reverse=True)
-            
-            print(f"✅ Trovate {len(geo_articles)} notizie geopolitiche da {data['totalResults']} totali")
-            return geo_articles
-            
-        else:
-            print(f"❌ Errore API geo: {response.status_code}")
-            return []
+                response = requests.get(f"{self.base_url}/everything", params=params, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    for article in data.get('articles', []):
+                        if article.get('title') and article.get('description'):
+                            articles.append({
+                                'title': article.get('title', ''),
+                                'description': article.get('description', ''),
+                                'content': article.get('content', ''),
+                                'url': article.get('url', ''),
+                                'source': article.get('source', {}).get('name', 'NewsAPI'),
+                                'published_at': article.get('publishedAt', ''),
+                                'category': keyword,
+                                'collector': 'newsapi'
+                            })
+                    
+                    logger.info(f"✅ NewsAPI: {len(data.get('articles', []))} articoli per '{keyword}'")
+                else:
+                    logger.error(f"❌ NewsAPI errore {response.status_code} per '{keyword}'")
+                
+                time.sleep(0.1)  # Rate limiting
+                
+            except Exception as e:
+                logger.error(f"❌ Errore NewsAPI per '{keyword}': {e}")
         
-    except Exception as e:
-        print(f"❌ Errore geo: {e}")
-        return []
+        return articles
 
-def find_correlations(cyber_articles, geo_articles):
-    """Trova correlazioni tra cyber e geo notizie"""
+    def collect_rss_feeds(self, rss_feeds: List[str], category: str) -> List[Dict[str, Any]]:
+        """Raccoglie notizie da feed RSS"""
+        articles = []
+        
+        for feed_url in rss_feeds:
+            try:
+                feed = feedparser.parse(feed_url)
+                
+                for entry in feed.entries[:10]:  # Limita a 10 per feed
+                    articles.append({
+                        'title': getattr(entry, 'title', ''),
+                        'description': getattr(entry, 'summary', ''),
+                        'content': getattr(entry, 'content', [{}])[0].get('value', '') if hasattr(entry, 'content') else '',
+                        'url': getattr(entry, 'link', ''),
+                        'source': feed.feed.get('title', feed_url),
+                        'published_at': getattr(entry, 'published', ''),
+                        'category': category,
+                        'collector': 'rss'
+                    })
+                
+                logger.info(f"✅ RSS: {len(feed.entries[:10])} articoli da {feed.feed.get('title', feed_url)}")
+                time.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"❌ Errore RSS {feed_url}: {e}")
+        
+        return articles
+
+    def collect_cybersecurity_news(self) -> List[Dict[str, Any]]:
+        """Raccoglie notizie cybersecurity"""
+        cyber_keywords = [
+            'cybersecurity', 'cyber attack', 'malware', 'ransomware', 
+            'data breach', 'hacking', 'vulnerability', 'zero-day',
+            'phishing', 'APT', 'botnet', 'DDoS', 'exploit'
+        ]
+        
+        # NewsAPI
+        newsapi_articles = self.collect_news_api(cyber_keywords, 'technology')
+        
+        # RSS
+        rss_articles = self.collect_rss_feeds(self.cyber_rss_feeds, 'cybersecurity')
+        
+        all_articles = newsapi_articles + rss_articles
+        logger.info(f"🔒 Totale cybersecurity: {len(all_articles)} articoli")
+        
+        return all_articles
+
+    def collect_geopolitical_news(self) -> List[Dict[str, Any]]:
+        """Raccoglie notizie geopolitiche"""
+        geopolitical_keywords = [
+            'geopolitics', 'international relations', 'diplomatic crisis',
+            'military conflict', 'sanctions', 'trade war', 'election',
+            'terrorism', 'nuclear', 'defense', 'intelligence', 'espionage'
+        ]
+        
+        # NewsAPI
+        newsapi_articles = self.collect_news_api(geopolitical_keywords, 'general')
+        
+        # RSS
+        rss_articles = self.collect_rss_feeds(self.geopolitical_rss_feeds, 'geopolitics')
+        
+        all_articles = newsapi_articles + rss_articles
+        logger.info(f"🌍 Totale geopolitica: {len(all_articles)} articoli")
+        
+        return all_articles
+
+    def collect_all_news(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Raccoglie tutte le notizie"""
+        logger.info("📡 Iniziando raccolta completa notizie...")
+        
+        cyber_news = self.collect_cybersecurity_news()
+        geo_news = self.collect_geopolitical_news()
+        
+        logger.info(f"📊 Raccolta completata: {len(cyber_news)} cyber + {len(geo_news)} geo = {len(cyber_news + geo_news)} totali")
+        
+        return {
+            'cybersecurity': cyber_news,
+            'geopolitics': geo_news,
+            'all': cyber_news + geo_news
+        }
+
+
+# Funzioni standalone per compatibilità
+def collect_cybersecurity_rss(limit=20):
+    """Raccoglie notizie cybersecurity da RSS"""
+    import os
+    api_key = os.getenv('NEWS_API_KEY')
+    if not api_key:
+        logger.error("❌ NEWS_API_KEY non trovata")
+        return []
     
-    print("🔍 Cercando correlazioni...")
+    collector = NewsCollector(api_key)
+    articles = collector.collect_cybersecurity_news()
+    return articles[:limit]
+
+def collect_geopolitical_rss(limit=20):
+    """Raccoglie notizie geopolitiche da RSS"""
+    import os
+    api_key = os.getenv('NEWS_API_KEY')
+    if not api_key:
+        logger.error("❌ NEWS_API_KEY non trovata")
+        return []
     
+    collector = NewsCollector(api_key)
+    articles = collector.collect_geopolitical_news()
+    return articles[:limit]
+
+def enhanced_correlation_finder(cyber_articles, geo_articles):
+    """Trova correlazioni avanzate tra articoli cyber e geopolitici"""
     correlations = []
     
-    # Keywords che indicano connessioni
-    connection_keywords = [
-        'russia', 'china', 'iran', 'north korea', 'ukraine',
-        'nation-state', 'government', 'state-sponsored', 'apt',
-        'military', 'intelligence', 'warfare'
-    ]
+    # Parole chiave per correlazioni
+    correlation_keywords = {
+        'nation_state': ['china', 'russia', 'iran', 'north korea', 'apt', 'state-sponsored'],
+        'critical_infrastructure': ['power grid', 'water', 'transportation', 'healthcare', 'finance'],
+        'military': ['military', 'defense', 'army', 'navy', 'air force', 'pentagon'],
+        'election': ['election', 'voting', 'democracy', 'campaign', 'ballot'],
+        'supply_chain': ['supply chain', 'vendor', 'third party', 'supplier'],
+        'energy': ['oil', 'gas', 'energy', 'pipeline', 'nuclear', 'power plant'],
+        'financial': ['bank', 'financial', 'payment', 'swift', 'cryptocurrency'],
+        'diplomatic': ['embassy', 'diplomat', 'treaty', 'sanctions', 'negotiations']
+    }
     
-    for cyber in cyber_articles:
-        cyber_text = (cyber['title'] + ' ' + (cyber['description'] or '')).lower()
-        
-        for geo in geo_articles:
-            geo_text = (geo['title'] + ' ' + (geo['description'] or '')).lower()
+    for cyber_article in cyber_articles:
+        for geo_article in geo_articles:
+            correlation_score = 0
+            correlation_type = []
             
-            # Cerca keywords comuni
-            common_keywords = []
-            for keyword in connection_keywords:
-                if keyword in cyber_text and keyword in geo_text:
-                    common_keywords.append(keyword)
+            cyber_text = f"{cyber_article.get('title', '')} {cyber_article.get('description', '')}".lower()
+            geo_text = f"{geo_article.get('title', '')} {geo_article.get('description', '')}".lower()
             
-            if common_keywords:
-                correlation = {
-                    'cyber_article': cyber,
-                    'geo_article': geo,
-                    'common_keywords': common_keywords,
-                    'connection_score': len(common_keywords)
-                }
-                correlations.append(correlation)
+            # Analizza correlazioni per categoria
+            for category, keywords in correlation_keywords.items():
+                cyber_matches = sum(1 for keyword in keywords if keyword in cyber_text)
+                geo_matches = sum(1 for keyword in keywords if keyword in geo_text)
+                
+                if cyber_matches > 0 and geo_matches > 0:
+                    correlation_score += (cyber_matches + geo_matches) * 10
+                    correlation_type.append(category)
+            
+            # Controlla entità comuni (paesi, organizzazioni)
+            entities = ['china', 'russia', 'usa', 'iran', 'israel', 'ukraine', 'nato', 'eu', 'un']
+            common_entities = []
+            for entity in entities:
+                if entity in cyber_text and entity in geo_text:
+                    correlation_score += 15
+                    common_entities.append(entity)
+            
+            # Controlla temporal proximity
+            if correlation_score > 0:
+                try:
+                    cyber_date = datetime.fromisoformat(cyber_article.get('published_at', '').replace('Z', '+00:00'))
+                    geo_date = datetime.fromisoformat(geo_article.get('published_at', '').replace('Z', '+00:00'))
+                    time_diff = abs((cyber_date - geo_date).days)
+                    
+                    if time_diff <= 1:
+                        correlation_score += 20
+                    elif time_diff <= 3:
+                        correlation_score += 10
+                except:
+                    pass
+            
+            if correlation_score >= 25:  # Soglia per correlazione significativa
+                severity = 'HIGH' if correlation_score >= 50 else 'MEDIUM' if correlation_score >= 35 else 'LOW'
+                
+                correlations.append({
+                    'cyber_article': cyber_article,
+                    'geo_article': geo_article,
+                    'correlation_score': correlation_score,
+                    'correlation_type': correlation_type,
+                    'common_entities': common_entities,
+                    'severity': severity,
+                    'timestamp': datetime.now().isoformat()
+                })
     
-    # Ordina per rilevanza
-    correlations.sort(key=lambda x: x['connection_score'], reverse=True)
+    # Ordina per score
+    correlations.sort(key=lambda x: x['correlation_score'], reverse=True)
     
-    print(f"🎯 Trovate {len(correlations)} possibili correlazioni")
+    logger.info(f"🎯 Trovate {len(correlations)} correlazioni")
     return correlations
-
-def save_data(cyber_articles, geo_articles, correlations):
-    """Salva tutti i dati"""
-    
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    
-    # Salva articoli cyber
-    with open(f'cyber_news_{timestamp}.json', 'w', encoding='utf-8') as f:
-        json.dump(cyber_articles, f, indent=2, ensure_ascii=False)
-    
-    # Salva articoli geo
-    with open(f'geo_news_{timestamp}.json', 'w', encoding='utf-8') as f:
-        json.dump(geo_articles, f, indent=2, ensure_ascii=False)
-    
-    # Salva correlazioni
-    with open(f'correlations_{timestamp}.json', 'w', encoding='utf-8') as f:
-        json.dump(correlations, f, indent=2, ensure_ascii=False)
-    
-    print(f"✅ Dati salvati con timestamp: {timestamp}")
-
-def display_results(cyber_articles, geo_articles, correlations):
-    """Mostra i risultati principali"""
-    
-    print("\n" + "="*60)
-    print("📊 RISULTATI AGGREGAZIONE CYBER-GEO NEWS")
-    print("="*60)
-    
-    # Top cyber news
-    print(f"\n🔒 TOP {min(3, len(cyber_articles))} NOTIZIE CYBERSECURITY:")
-    for i, article in enumerate(cyber_articles[:3]):
-        print(f"\n{i+1}. {article['title']}")
-        print(f"   📅 {article['publishedAt']}")
-        print(f"   🔗 {article['source']['name']}")
-        print(f"   🎯 Score: {article.get('cyber_score', 0)}")
-    
-    # Top geo news
-    print(f"\n🌍 TOP {min(3, len(geo_articles))} NOTIZIE GEOPOLITICHE:")
-    for i, article in enumerate(geo_articles[:3]):
-        print(f"\n{i+1}. {article['title']}")
-        print(f"   📅 {article['publishedAt']}")
-        print(f"   🔗 {article['source']['name']}")
-        print(f"   🎯 Score: {article.get('geo_score', 0)}")
-    
-    # Correlazioni
-    if correlations:
-        print(f"\n🎯 TOP {min(2, len(correlations))} CORRELAZIONI TROVATE:")
-        for i, corr in enumerate(correlations[:2]):
-            print(f"\n{i+1}. CONNESSIONE (Score: {corr['connection_score']}):")
-            print(f"   🔒 Cyber: {corr['cyber_article']['title'][:60]}...")
-            print(f"   🌍 Geo:   {corr['geo_article']['title'][:60]}...")
-            print(f"   🔗 Keywords comuni: {', '.join(corr['common_keywords'])}")
-    else:
-        print("\n🎯 Nessuna correlazione diretta trovata oggi")
-
-# Main execution
-if __name__ == "__main__":
-    print("🚀 CYBER-GEO NEWS AGGREGATOR")
-    print("="*40)
-    
-    try:
-        from config import NEWS_API_KEY
-        
-        # Raccolta dati
-        cyber_articles = collect_cyber_news(NEWS_API_KEY)
-        time.sleep(1)  # Pausa per evitare rate limiting
-        geo_articles = collect_geopolitical_news(NEWS_API_KEY)
-        
-        # Analisi correlazioni
-        correlations = find_correlations(cyber_articles, geo_articles)
-        
-        # Salvataggio
-        save_data(cyber_articles, geo_articles, correlations)
-        
-        # Visualizzazione risultati
-        display_results(cyber_articles, geo_articles, correlations)
-        
-        print(f"\n✅ COMPLETATO! Analizzate {len(cyber_articles)} cyber + {len(geo_articles)} geo notizie")
-        print(f"📁 File salvati con timestamp per riferimento futuro")
-        
-    except Exception as e:
-        print(f"❌ Errore generale: {e}")
-        import traceback
-        traceback.print_exc()
-    
-        
