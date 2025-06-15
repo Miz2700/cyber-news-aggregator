@@ -1,7 +1,4 @@
 import logging
-import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
 from datetime import datetime, timedelta
 import json
 import os
@@ -14,13 +11,6 @@ logger = logging.getLogger(__name__)
 
 class CyberGeoAlertSystem:
     def __init__(self):
-        # Configurazione email
-        self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
-        self.smtp_username = os.getenv('SMTP_USERNAME', '')
-        self.smtp_password = os.getenv('SMTP_PASSWORD', '')
-        self.recipient_email = os.getenv('RECIPIENT_EMAIL', '')
-        
         # Configurazione Telegram
         self.telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN', '')
         self.telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID', '')
@@ -113,34 +103,6 @@ class CyberGeoAlertSystem:
 """
         return description.strip()
 
-    def send_email_alert(self, alert: Dict[str, Any]) -> bool:
-        """Invia alert via email"""
-        try:
-            if not all([self.smtp_username, self.smtp_password, self.recipient_email]):
-                logger.warning("⚠️ Configurazione email incompleta")
-                return False
-            
-            msg = MimeMultipart()
-            msg['From'] = self.smtp_username
-            msg['To'] = self.recipient_email
-            msg['Subject'] = f"🚨 CYBER-GEO ALERT {alert['level']} - Score {alert['score']}"
-            
-            body = alert['description']
-            msg.attach(MimeText(body, 'plain', 'utf-8'))
-            
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            server.starttls()
-            server.login(self.smtp_username, self.smtp_password)
-            server.send_message(msg)
-            server.quit()
-            
-            logger.info(f"✅ Email alert inviato: {alert['id']}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Errore invio email: {e}")
-            return False
-
     def send_telegram_alert(self, alert: Dict[str, Any]) -> bool:
         """Invia alert via Telegram"""
         try:
@@ -197,7 +159,6 @@ class CyberGeoAlertSystem:
         """Processa e invia tutti gli alert"""
         results = {
             'total_alerts': len(alerts),
-            'sent_email': 0,
             'sent_telegram': 0,
             'failed': 0,
             'by_level': {'CRITICAL': 0, 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0}
@@ -209,14 +170,11 @@ class CyberGeoAlertSystem:
             
             # Invia solo alert HIGH e CRITICAL per evitare spam
             if alert['level'] in ['CRITICAL', 'HIGH']:
-                email_sent = self.send_email_alert(alert)
                 telegram_sent = self.send_telegram_alert(alert)
                 
-                if email_sent:
-                    results['sent_email'] += 1
                 if telegram_sent:
                     results['sent_telegram'] += 1
-                if not email_sent and not telegram_sent:
+                else:
                     results['failed'] += 1
             
             # Log alert per MEDIUM e LOW
@@ -365,15 +323,12 @@ def test_alert_system():
     
     alert_system = CyberGeoAlertSystem()
     
-    # Test email
-    email_result = alert_system.send_email_alert(test_alert)
-    
     # Test Telegram
     telegram_result = alert_system.send_telegram_alert(test_alert)
     
-    logger.info(f"🧪 Test completato - Email: {email_result}, Telegram: {telegram_result}")
+    logger.info(f"🧪 Test completato - Telegram: {telegram_result}")
     
-    return email_result or telegram_result
+    return telegram_result
 
 
 if __name__ == "__main__":
